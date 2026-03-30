@@ -64,9 +64,15 @@ def processar_pdf(file):
         match_oc = re.search(r'-Oc\s*(\d+)', primeira_linha, re.IGNORECASE)
         num_oc = match_oc.group(1) if match_oc else "Sem Oc"
 
-        fornecedor_raw = primeira_linha.split(num_doc)[-1].replace(valores_linha[-1], "").strip()
-        fornecedor = re.sub(r'\d+\s*-Oc\s*\d*', '', fornecedor_raw).strip()
-        fornecedor = re.sub(r'^-', '', fornecedor).strip()
+        try:
+            pos_fim_num = primeira_linha.find(num_doc) + len(num_doc)
+            pos_ini_valor = primeira_linha.rfind(valores_linha[-1])
+            fornecedor_bruto = primeira_linha[pos_fim_num:pos_ini_valor].strip()
+            fornecedor = re.sub(r'\d+\s*-Oc\s*\d*', '', fornecedor_bruto, flags=re.IGNORECASE).strip()
+            fornecedor = re.sub(r'^-', '', fornecedor).strip()
+            if not fornecedor or fornecedor == ",": fornecedor = "Não Identificado"
+        except:
+            fornecedor = "Erro na Leitura"
 
         apropriacao = ""
         m_aprop = re.search(r'^(.*?)\s*-\s*Operador', bloco, re.MULTILINE)
@@ -79,6 +85,7 @@ def processar_pdf(file):
             observacao = m_obs.group(1).strip()
             observacao = re.sub(r'\d{1,3}(\.\d{3})*,\d{2}$', '', observacao).strip()
 
+        # --- FINANCEIRO (PARCELAS) ---
         partes_fin = bloco.split("Dt.Ent")
         if len(partes_fin) > 1:
             corpo_parcelas = partes_fin[1]
@@ -87,8 +94,9 @@ def processar_pdf(file):
         else:
             matches_venc = []       
 
+        # AJUSTE SOLICITADO: Se não houver vencimento, deixa a data em branco
         if not matches_venc:
-            matches_venc = [(data_emi, str(valor_total_nf))]
+            matches_venc = [("", str(valor_total_nf))] # Data vazia em vez de data_emi
 
         for dt_v, v_p in matches_venc:
             v_p_clean = parse_valor(v_p)
