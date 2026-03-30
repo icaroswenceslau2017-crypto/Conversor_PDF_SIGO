@@ -6,7 +6,7 @@ import io
 
 st.set_page_config(page_title="Relatório de Notas no SIGO", layout="wide")
 
-st.title("📄 Extrator de Documentos SIGO - NF/ESTOQUE")
+st.title("📄 Conversor de Documentos SIGO - NF/ESTOQUE")
 
 def parse_valor(v):
     if not v: return 0.0
@@ -80,20 +80,26 @@ def processar_pdf(file):
             apropriacao = m_aprop.group(1).split('\n')[-1].strip()
 
         observacao = ""
-        m_obs = re.search(r'Observação\s*[:\-\s]*(.*?)(?=\n\d{2}/\d{2}/\d{4}|\n---|$)', bloco, re.IGNORECASE | re.DOTALL)
+        # Procuramos o termo 'Observação'. O (.*?) pega o texto, mas o [ ]{2,} para a leitura 
+        # se encontrar 2 espaços seguidos (comum antes do valor no PDF)
+        m_obs = re.search(r'Observação\s*[:\-\s]*(.*?)(?=\s{2,}|\d{2}/\d{2}/\d{4}|$)', bloco, re.IGNORECASE)
         if m_obs:
-            observacao = m_obs.group(1).split('\n')[0].strip()
-
-        # --- FINANCEIRO (PARCELAS) ---
-        # Filtro estrito: Parcelas só existem após o "Dt.Ent"
+            observacao = m_obs.group(1).strip()
+            # Limpeza extra: se a observação capturou um valor (ex: 450,00), nós removemos
+            observacao = re.sub(r'\d{1,3}(\.\d{3})*,\d{2}$', '', observacao).strip()
+        # --- AJUSTE FINO DO FINANCEIRO (PARCELAS) ---
         partes_fin = bloco.split("Dt.Ent")
         if len(partes_fin) > 1:
+            # Pegamos tudo após Dt.Ent
             corpo_parcelas = partes_fin[1]
-            # Remove a data de entrada que vem logo após o texto "Dt.Ent"
+            
+            # 1. Removemos a data de entrada (primeira data que aparece após Dt.Ent)
             corpo_parcelas = re.sub(r'^\s*\d{2}/\d{2}/\d{4}', '', corpo_parcelas)
+            
+            # 2. Buscamos apenas pares de DATA + VALOR que estejam no final das frases
             matches_venc = re.findall(r'(\d{2}/\d{2}/\d{4})\s+([\d\.,]+)', corpo_parcelas)
         else:
-            matches_venc = []
+            matches_venc = [] 
 
         # REGRA DE OURO: Se não achou parcela, usa o valor total
         if not matches_venc:
@@ -154,4 +160,4 @@ if arquivo:
             df.to_excel(writer, sheet_name='DB_Fluxo', index=False)
             audit.to_excel(writer, sheet_name='Auditoria', index=False)
             dups.to_excel(writer, sheet_name='Duplicados', index=False)
-        st.download_button("📥 Baixar Relatório Final", buffer.getvalue(), "fluxo_caixa_v7.xlsx")
+        st.download_button("📥 Baixar Relatório", buffer.getvalue(), "relatorio_NF_Estoque.xlsx")
