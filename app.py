@@ -4,9 +4,9 @@ import pandas as pd
 import re
 import io
 
-st.set_page_config(page_title="Data Senior - Ultra Precisão", layout="wide")
+st.set_page_config(page_title="Relatório de Notas no SIGO", layout="wide")
 
-st.title("🏗️ Extrator de Obras - Filtro de Caracteres e Precisão de Soma")
+st.title("📄 Extrator de Documentos SIGO - NF/ESTOQUE")
 
 def parse_valor(v):
     if not v: return 0.0
